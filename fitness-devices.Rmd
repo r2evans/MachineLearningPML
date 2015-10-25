@@ -72,7 +72,6 @@ pmlTest20 <- pmlTest20 %>%
         -starts_with('min_'), -starts_with('amplitude'),
         -starts_with('var'), -starts_with('avg'),
         -starts_with('stddev'))
-pmlTest20 <- pmlTest20[,c(49, 1:48)]
 ```
 
 We create a training set[^seed] with 75% of the data, leaving 25% for evaluation of the model.
@@ -119,3 +118,16 @@ testPC <- cbind(classe=pmlTest$classe, predict(preProc1, pmlTest[,-1]))
 ```
 
 This model shows `r round(100*confMtx$overall[['Accuracy']], 1)`% accuracy, suggesting that random forests are an effective classification method for this data.
+
+# Alternative (non-PCA) Model Fit
+
+Using the original non-orthogonalized data, we get slightly different results:
+
+```{r run2}
+dat <- pmlTrain
+dat$classe <- factor(dat$classe)
+modelFit2 <- randomForest(classe ~ ., data=dat, proximity=FALSE)
+( confMtx2 <- confusionMatrix(pmlTest$classe, predict(modelFit2, pmlTest)) )
+```
+
+This model shows `r round(100*confMtx2$overall[['Accuracy']], 1)`% accuracy, suggesting that random forests without PCA may provide a better (or potentially over-fit) classification method.
