@@ -1,0 +1,121 @@
+---
+author: "Bill Evans"
+recipient: "Recipient Name or Company"
+title: "Fitness Devices"
+output:
+  html_document:
+    toc: no
+    toc_depth: 1
+    number_sections: yes
+    fig_caption: yes
+    fig_width: 6.5
+    fig_height: 3.5
+  adstemplates::memo_document:
+    toc: no
+    toc_depth: 1
+    number_sections: yes
+    fig_caption: yes
+    fig_width: 6.5
+    fig_height: 3.5
+  word_document:
+    fig_caption: yes
+    fig_width: 6.5
+    fig_height: 3.5
+---
+
+# Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively.
+These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks.
+One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it.
+In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants.
+They were asked to perform barbell lifts correctly and incorrectly in 5 different ways.
+More information is available from the website [here](http://groupware.les.inf.puc-rio.br/har) (see the section on the Weight Lifting Exercise Dataset). 
+
+```{r randomSeed, echo=FALSE, include=FALSE}
+library(dplyr)
+library(caret)
+library(randomForest)
+set.seed(seed <- sample(.Machine$integer.max, size=1))
+```
+
+```{r loadData, echo=FALSE}
+pmlAll <- tbl_df(read.csv('pml-training.csv', as.is=TRUE,
+                          na.strings=c('NA', '#DIV/0!')))
+pmlTest20 <- tbl_df(read.csv('pml-testing.csv', as.is=TRUE,
+                             na.strings=c('NA', '#DIV/0!')))
+```
+
+# Data Cleaning, Selection, and Partitioning
+
+Many of the data are invalid values (e.g., `#DIV/0!`, empty strings), so these values are converted to `NA` on data import.
+Much of the data is segmented into windows (time-series).
+Since our predictions are meant to be row-wise (in contrast with the original paper), we exclude time-specific variables (e.g., `new_window`, `num_window`, `*_timestamp_*`).
+Additionally, the summary statistics for each window are not relevant without seeing the full window, so these are also removed (e.g., `kurtosis_*`, `avg_*`, `total_*`).
+In addition to the response variable `classe`, for each predictor group of "belt", "arm", "dumbbell", and "forearm", we have $roll$, $pitch$, $yaw$, and 3 axes ($x$, $y$, and $z$) each of $gyros$, $accel$, and $magnet$, for a total of 48 predictors.
+
+```{r dataClean}
+pmlAll <- pmlAll %>%
+    select(
+        -X, -user_name, -contains('timestamp'), -contains('window'),
+        -starts_with('total_'), -starts_with('kurtosis_'),
+        -starts_with('skewness_'), -starts_with('max_'),
+        -starts_with('min_'), -starts_with('amplitude'),
+        -starts_with('var'), -starts_with('avg'),
+        -starts_with('stddev'))
+pmlAll <- pmlAll[,c(49, 1:48)]
+pmlTest20 <- pmlTest20 %>%
+    select(
+        -X, -user_name, -contains('timestamp'), -contains('window'),
+        -starts_with('total_'), -starts_with('kurtosis_'),
+        -starts_with('skewness_'), -starts_with('max_'),
+        -starts_with('min_'), -starts_with('amplitude'),
+        -starts_with('var'), -starts_with('avg'),
+        -starts_with('stddev'))
+pmlTest20 <- pmlTest20[,c(49, 1:48)]
+```
+
+We create a training set[^seed] with 75% of the data, leaving 25% for evaluation of the model.
+
+[^seed]: The random seed used for this model is `r seed`.
+
+```{r partition}
+trainIdx <- createDataPartition(pmlAll$classe, p=0.75, list=TRUE)
+pmlTrain <- pmlAll[trainIdx[[1]],]
+pmlTest <- pmlAll[-trainIdx[[1]],]
+```
+
+# Pre-Processing
+
+Looking for variables that are highly correlated (arbitrarily using 0.95):
+
+```{r checkCorr}
+pmlCorr <- cor(pmlTrain[,-1])
+diag(pmlCorr) <- 0
+pmlCorrStrong <- which(upper.tri(pmlCorr) * abs(pmlCorr) > 0.95, arr.ind=TRUE)
+data.frame('Variable 1'=rownames(pmlCorr)[ pmlCorrStrong[,1] ],
+           'Variable 2'=colnames(pmlCorr)[ pmlCorrStrong[,2] ],
+           'Correlation'=pmlCorr[ pmlCorrStrong ],
+           check.names=FALSE) %>%
+    knitr::kable()
+```
+
+These results suggest that removing one of each pair will reduce overall orthogonality, and by reducing the number of predictors, it may be easier to find a solution.
+An alternative to removing individual variables like this is to perform principal component analysis on the data.
+
+```{r pca}
+preProc1 <- preProcess(pmlTrain, method='pca', thresh=0.95)
+trainPC <- cbind(classe=pmlTrain$classe, predict(preProc1, pmlTrain[,-1]))
+```
+
+After PCA, we have `r ncol(trainPC)` predictors, reduced from the original 48.
+
+# Model Fit
+
+```{r eval}
+modelFit <- randomForest(classe ~ ., data=trainPC, proximity=FALSE)
+testPC <- cbind(classe=pmlTest$classe, predict(preProc1, pmlTest[,-1]))
+( confMtx <- confusionMatrix(testPC$classe, predict(modelFit, testPC)) )
+```
+
+This model shows `r round(100*confMtx$overall[['Accuracy']], 1)`% accuracy, suggesting that random forests are an effective classification method for this data.
