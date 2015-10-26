@@ -118,17 +118,17 @@ data.frame('Variable 1'=rownames(pmlCorr)[ pmlCorrStrong[,1] ],
 <tr class="odd">
 <td align="left">pitch_belt</td>
 <td align="left">accel_belt_x</td>
-<td align="right">-0.9651500</td>
+<td align="right">-0.9659530</td>
 </tr>
 <tr class="even">
 <td align="left">roll_belt</td>
 <td align="left">accel_belt_z</td>
-<td align="right">-0.9919448</td>
+<td align="right">-0.9920391</td>
 </tr>
 <tr class="odd">
 <td align="left">gyros_dumbbell_x</td>
 <td align="left">gyros_dumbbell_z</td>
-<td align="right">-0.9842669</td>
+<td align="right">-0.9838490</td>
 </tr>
 </tbody>
 </table>
@@ -146,39 +146,80 @@ testPC &lt;- cbind(classe=pmlTest$classe, predict(preProc1, pmlTest[,-1]))
 ## 
 ##           Reference
 ## Prediction    A    B    C    D    E
-##          A 1383    3    8    1    0
-##          B    9  922   15    0    3
-##          C    3    5  835   11    1
-##          D    1    4   16  780    3
-##          E    0    5    5    4  887
+##          A 1388    4    3    0    0
+##          B   15  919    8    0    7
+##          C    0   12  837    6    0
+##          D    1    2   25  772    4
+##          E    1    4    6    2  888
 ## 
 ## Overall Statistics
 ##                                           
-##                Accuracy : 0.9802          
-##                  95% CI : (0.9759, 0.9839)
-##     No Information Rate : 0.2847          
+##                Accuracy : 0.9796          
+##                  95% CI : (0.9753, 0.9834)
+##     No Information Rate : 0.2865          
 ##     P-Value [Acc &gt; NIR] : &lt; 2.2e-16       
 ##                                           
-##                   Kappa : 0.975           
+##                   Kappa : 0.9742          
+##  Mcnemar's Test P-Value : 0.0002426       
+## 
+## Statistics by Class:
+## 
+##                      Class: A Class: B Class: C Class: D Class: E
+## Sensitivity            0.9879   0.9766   0.9522   0.9897   0.9878
+## Specificity            0.9980   0.9924   0.9955   0.9922   0.9968
+## Pos Pred Value         0.9950   0.9684   0.9789   0.9602   0.9856
+## Neg Pred Value         0.9952   0.9944   0.9896   0.9980   0.9973
+## Prevalence             0.2865   0.1919   0.1792   0.1591   0.1833
+## Detection Rate         0.2830   0.1874   0.1707   0.1574   0.1811
+## Detection Prevalence   0.2845   0.1935   0.1743   0.1639   0.1837
+## Balanced Accuracy      0.9929   0.9845   0.9739   0.9910   0.9923</code></pre>
+<p>This model shows 98% accuracy, suggesting that random forests are an effective classification method for this data.</p>
+</div>
+<div id="alternative-non-pca-model-fit" class="section level1">
+<h1><span class="header-section-number">5</span> Alternative (non-PCA) Model Fit</h1>
+<p>Using the original non-orthogonalized data, we get slightly different results:</p>
+<pre class="r"><code>dat &lt;- pmlTrain
+dat$classe &lt;- factor(dat$classe)
+modelFit2 &lt;- randomForest(classe ~ ., data=dat, proximity=FALSE)
+( confMtx2 &lt;- confusionMatrix(pmlTest$classe, predict(modelFit2, pmlTest)) )</code></pre>
+<pre><code>## Confusion Matrix and Statistics
+## 
+##           Reference
+## Prediction    A    B    C    D    E
+##          A 1395    0    0    0    0
+##          B    2  947    0    0    0
+##          C    0    3  850    2    0
+##          D    0    0    5  798    1
+##          E    0    0    2    5  894
+## 
+## Overall Statistics
+##                                           
+##                Accuracy : 0.9959          
+##                  95% CI : (0.9937, 0.9975)
+##     No Information Rate : 0.2849          
+##     P-Value [Acc &gt; NIR] : &lt; 2.2e-16       
+##                                           
+##                   Kappa : 0.9948          
 ##  Mcnemar's Test P-Value : NA              
 ## 
 ## Statistics by Class:
 ## 
 ##                      Class: A Class: B Class: C Class: D Class: E
-## Sensitivity            0.9907   0.9819   0.9499   0.9799   0.9922
-## Specificity            0.9966   0.9932   0.9950   0.9942   0.9965
-## Pos Pred Value         0.9914   0.9715   0.9766   0.9701   0.9845
-## Neg Pred Value         0.9963   0.9957   0.9891   0.9961   0.9983
-## Prevalence             0.2847   0.1915   0.1792   0.1623   0.1823
-## Detection Rate         0.2820   0.1880   0.1703   0.1591   0.1809
+## Sensitivity            0.9986   0.9968   0.9918   0.9913   0.9989
+## Specificity            1.0000   0.9995   0.9988   0.9985   0.9983
+## Pos Pred Value         1.0000   0.9979   0.9942   0.9925   0.9922
+## Neg Pred Value         0.9994   0.9992   0.9983   0.9983   0.9998
+## Prevalence             0.2849   0.1937   0.1748   0.1642   0.1825
+## Detection Rate         0.2845   0.1931   0.1733   0.1627   0.1823
 ## Detection Prevalence   0.2845   0.1935   0.1743   0.1639   0.1837
-## Balanced Accuracy      0.9936   0.9875   0.9725   0.9870   0.9943</code></pre>
-<p>This model shows 98% accuracy, suggesting that random forests are an effective classification method for this data.</p>
+## Balanced Accuracy      0.9993   0.9982   0.9953   0.9949   0.9986</code></pre>
+<p>This model shows 99.6% accuracy, suggesting that random forests without PCA may provide a better (or potentially over-fit) classification method.</p>
+<p>Based on the mis-classification of the test set, un unbiased estimate of the out-of-sample error rate is 0.41%.</p>
 </div>
 <div class="footnotes">
 <hr />
 <ol>
-<li id="fn1"><p>The random seed used for this model is 1893642863.<a href="#fnref1">↩</a></p></li>
+<li id="fn1"><p>The random seed used for this model is 2040635989.<a href="#fnref1">↩</a></p></li>
 </ol>
 </div>
 
