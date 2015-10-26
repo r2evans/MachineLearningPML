@@ -132,4 +132,4 @@ modelFit2 <- randomForest(classe ~ ., data=dat, proximity=FALSE)
 
 This model shows `r round(100*confMtx2$overall[['Accuracy']], 1)`% accuracy, suggesting that random forests without PCA may provide a better (or potentially over-fit) classification method.
 
-Based on the mis-classification of the test set, un unbiased estimate of the out-of-sample error rate is `r round( 100*(1 - confMtx2$overall[['Accuracy']]), 2)`%.
+Based on the mis-classification of the test set, an unbiased estimate of the out-of-sample error rate is `r round( 100*(1 - confMtx2$overall[['Accuracy']]), 2)`%.
